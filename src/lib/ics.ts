@@ -9,11 +9,23 @@ function escapeICS(text: string): string {
     .replace(/\r/g, '');
 }
 
-function formatDate(dateStr: string, isAllDay: boolean): string {
+function formatDate(dateStr: string, isAllDay: boolean, isEndDate = false): string {
   const date = new Date(dateStr);
+
   if (isAllDay) {
-    return date.toISOString().split('T')[0].replace(/-/g, '');
+    // For all-day events, extract date parts directly to avoid timezone issues
+    // ICS all-day dates are exclusive for end dates, so add 1 day to end date
+    const d = new Date(date);
+    if (isEndDate) {
+      d.setDate(d.getDate() + 1);
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}${month}${day}`;
   }
+
+  // For timed events, convert to UTC for ICS format
   return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
 }
 
@@ -31,7 +43,7 @@ export function generateICS(events: CalendarEvent[]): string {
     lines.push(`UID:${event.id}@calendar.mvp`);
     lines.push(`DTSTAMP:${formatDate(new Date().toISOString(), false)}`);
     lines.push(`DTSTART${event.isAllDay ? ';VALUE=DATE' : ''}:${formatDate(event.startDate, event.isAllDay)}`);
-    lines.push(`DTEND${event.isAllDay ? ';VALUE=DATE' : ''}:${formatDate(event.endDate, event.isAllDay)}`);
+    lines.push(`DTEND${event.isAllDay ? ';VALUE=DATE' : ''}:${formatDate(event.endDate, event.isAllDay, true)}`);
     lines.push(`SUMMARY:${escapeICS(event.title)}`);
     if (event.description) {
       lines.push(`DESCRIPTION:${escapeICS(event.description)}`);

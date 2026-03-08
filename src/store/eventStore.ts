@@ -68,7 +68,9 @@ export const useEventStore = create<EventStore>((set, get) => ({
       updatedAt: now,
     };
     await db.events.add(event);
-    get().loadEvents();
+    // Reload all events without date filter to ensure new event is visible
+    const allEvents = await db.events.toArray();
+    set({ events: allEvents });
   },
 
   updateEvent: async (id, updates) => {
@@ -76,12 +78,16 @@ export const useEventStore = create<EventStore>((set, get) => ({
       ...updates,
       updatedAt: new Date().toISOString(),
     });
-    get().loadEvents();
+    // Reload all events to ensure updated event is visible
+    const allEvents = await db.events.toArray();
+    set({ events: allEvents });
   },
 
   deleteEvent: async (id) => {
     await db.events.delete(id);
-    get().loadEvents();
+    // Reload all events to refresh the list
+    const allEvents = await db.events.toArray();
+    set({ events: allEvents });
   },
 
   setSelectedDate: (date) => set({ selectedDate: date }),

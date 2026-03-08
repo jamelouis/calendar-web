@@ -1,0 +1,58 @@
+import type { CalendarEvent } from '../types';
+
+function escapeICS(text: string): string {
+  return text
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '');
+}
+
+function formatDate(dateStr: string, isAllDay: boolean): string {
+  const date = new Date(dateStr);
+  if (isAllDay) {
+    return date.toISOString().split('T')[0].replace(/-/g, '');
+  }
+  return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+}
+
+export function generateICS(events: CalendarEvent[]): string {
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//CalendarMVP//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+  ];
+
+  events.forEach(event => {
+    lines.push('BEGIN:VEVENT');
+    lines.push(`UID:${event.id}@calendar.mvp`);
+    lines.push(`DTSTAMP:${formatDate(new Date().toISOString(), false)}`);
+    lines.push(`DTSTART${event.isAllDay ? ';VALUE=DATE' : ''}:${formatDate(event.startDate, event.isAllDay)}`);
+    lines.push(`DTEND${event.isAllDay ? ';VALUE=DATE' : ''}:${formatDate(event.endDate, event.isAllDay)}`);
+    lines.push(`SUMMARY:${escapeICS(event.title)}`);
+    if (event.description) {
+      lines.push(`DESCRIPTION:${escapeICS(event.description)}`);
+    }
+    lines.push('END:VEVENT');
+  });
+
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+export function downloadICS(events: CalendarEvent[], filename = 'calendar.ics'): void {
+  const ics = generateICS(events);
+  const blob = new Blob([ics], { type: 'text/calendar' });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

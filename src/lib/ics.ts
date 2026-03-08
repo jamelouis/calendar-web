@@ -30,24 +30,36 @@ function formatDate(dateStr: string, isAllDay: boolean, isEndDate = false): stri
 }
 
 export function generateICS(events: CalendarEvent[]): string {
+  const now = new Date().toISOString();
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
     'PRODID:-//CalendarMVP//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
+    'X-WR-CALNAME:Calendar MVP',
+    `X-WR-TIMEZONE:${Intl.DateTimeFormat().resolvedOptions().timeZone}`,
   ];
 
-  events.forEach(event => {
+  events.forEach((event, index) => {
+    const created = new Date(event.createdAt).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    const modified = new Date(event.updatedAt).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+
     lines.push('BEGIN:VEVENT');
+    // Use event.id with sequence to ensure unique UIDs
     lines.push(`UID:${event.id}@calendar.mvp`);
-    lines.push(`DTSTAMP:${formatDate(new Date().toISOString(), false)}`);
+    lines.push(`DTSTAMP:${formatDate(now, false)}`);
+    lines.push(`CREATED:${created}`);
+    lines.push(`LAST-MODIFIED:${modified}`);
+    lines.push(`SEQUENCE:${index}`);
     lines.push(`DTSTART${event.isAllDay ? ';VALUE=DATE' : ''}:${formatDate(event.startDate, event.isAllDay)}`);
     lines.push(`DTEND${event.isAllDay ? ';VALUE=DATE' : ''}:${formatDate(event.endDate, event.isAllDay, true)}`);
     lines.push(`SUMMARY:${escapeICS(event.title)}`);
     if (event.description) {
       lines.push(`DESCRIPTION:${escapeICS(event.description)}`);
     }
+    lines.push('STATUS:CONFIRMED');
+    lines.push('TRANSP:OPAQUE');
     lines.push('END:VEVENT');
   });
 
@@ -57,7 +69,7 @@ export function generateICS(events: CalendarEvent[]): string {
 
 export function downloadICS(events: CalendarEvent[], filename = 'calendar.ics'): void {
   const ics = generateICS(events);
-  const blob = new Blob([ics], { type: 'text/calendar' });
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement('a');
